@@ -1,0 +1,401 @@
+---
+title: "BIOSTAT 620 HW1"
+author: "Nathan Szeto"
+date: "`r Sys.Date()`"
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/Users/nszeto/Documents/UMich/BIOSTAT 620/Data:Code")
+setwd(knitr::opts_knit$get('root.dir'))
+
+# Load packages
+library(readxl)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(circular)
+library(gridExtra)
+library(dplyr)
+```
+
+The code for this document can be found via Github [here](https://github.com/n-szeto/BIOSTAT620).
+
+# Part 1: Data Collection and Processing
+
+## 1a
+
+We are interested in the relationship between total screen time per day and the consistency of wake up times among adolescents. We are also interested in extending this question to social media screen time use in particular, and comparing the relationships. We hypothesize that adolescents who report less screen time per day will also report more consistent wake up times (with first pick up time used as a proxy), and that this relationship will be stronger for social media screen time use in particular[^1].
+
+[^1]: Hjetland, G. J., Skogen, J. C., Hysing, M., & Sivertsen, B. (2021). The Association Between Self-Reported Screen Time, Social Media Addiction, and Sleep Among Norwegian University Students. Frontiers in public health, 9, 794307. <https://doi.org/10.3389/fpubh.2021.794307>
+
+## 1b
+
+An Informed Consent Form is provided to all study participants and informs the participants of the study's purpose, procedures, risks, benefits, and possible compensation. The form should also be written in plain, accessible language, include researcher contact information, and be reviewed and approved by the Institutional Review Board (IRB) before being used in the study. Perhaps most importantly, an Informed Consent Form also includes information about confidentiality and the right to withdraw from the study at any time. These measures ensure that participants are fully informed about their rights as participants, and that they are able to make an informed decision about whether to participate in the study.
+
+## 1c
+
+Data collection plan:
+
+1.  Data are collected by study participants sometime before or on January 26, 2024, the last day of preliminary data collection (i.e., data freeze).
+
+2.  Variables collected include total screen time per day, social media screen time per day, and first pick up time.
+
+3.  Variables are collected from each participant's mobile phone based on sensor data.
+
+4.  Roughly 34 observations for each of the variables should be collected prior to the data freeze, though actual counts might vary from participant to participant.
+
+## 1d
+
+```{r}
+# Read in data
+data <- read_xlsx("ScreenTime_NSzeto.xlsx")
+
+# Correct date/time formatting
+data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
+data$Pickup.1st <- format(data$Pickup.1st, "%H:%M")
+
+# Define function to convert HH:MM data to minutes
+convert_time <- function(x) {
+  x <- as.period(hm(x))
+  return(60*hour(x) + minute(x))
+}
+
+# Convert HH:MM data to minutes
+data$Total.ST.min <- convert_time(data$Total.ST)
+data$Social.ST.min <- convert_time(data$Social.ST)
+
+# Create proportion variables
+data$Social.ST.prop <- data$Social.ST.min / data$Total.ST.min
+data$Duration.per.use <- data$Total.ST.min / data$Pickups
+```
+
+## 2a
+
+```{r}
+# Create time series plot for each variable of interest
+tot.st.min.plot <- ggplot(data, aes(x = Date, y = Total.ST.min)) +
+  geom_line() +
+  labs(title = "Total Screen Time per Day",
+       x = "Date",
+       y = "Total Screen Time (min)") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 6, face = "bold"),
+    axis.title = element_text(size = 5),
+    axis.text = element_text(size = 5),
+  )
+
+social.st.min.plot <- ggplot(data, aes(x = Date, y = Social.ST.min)) +
+  geom_line() +
+  labs(title = "Social Screen Time per Day",
+       x = "Date",
+       y = "Social Screen Time (min)") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 6, face = "bold"),
+    axis.title = element_text(size = 5),
+    axis.text = element_text(size = 5),
+  )
+
+pickups.plot <- ggplot(data, aes(x = Date, y = Pickups)) +
+  geom_line() +
+  labs(title = "Number of Pickups per Day",
+       x = "Date",
+       y = "Number of Pickups") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 6, face = "bold"),
+    axis.title = element_text(size = 5),
+    axis.text = element_text(size = 5),
+  )
+
+social.st.prop.plot <- ggplot(data, aes(x = Date, y = Social.ST.prop)) +
+  geom_line() +
+  labs(title = "Proportion of Social Screen Time per Day",
+       x = "Date",
+       y = "Proportion of Social Screen Time") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 6, face = "bold"),
+    axis.title = element_text(size = 5),
+    axis.text = element_text(size = 5),
+  )
+
+duration.per.use.plot <- ggplot(data, aes(x = Date, y = Duration.per.use)) +
+  geom_line() +
+  labs(title = "Duration per Use per Day",
+       x = "Date",
+       y = "Duration per Use (min)") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 6, face = "bold"),
+    axis.title = element_text(size = 5),
+    axis.text = element_text(size = 5),
+  )
+
+# Plot times series plots
+grid.arrange(tot.st.min.plot,
+             social.st.min.plot,
+             pickups.plot,
+             social.st.prop.plot,
+             duration.per.use.plot,
+             ncol = 3,
+             nrow = 2)
+```
+
+For the first plot of total screen time per day, we observe elevated total screen time levels from December 28 to New Year's Eve before return to previous levels. We see another increase in total screen time from January 9 onwards with a spike towards the end. This spike may be due to an anomaly in the sensor function for these days.
+
+For the second plot of social screen time per day, total social media screen time appears to be relatively stable over time, with a slight downwards trend over the entire observation period.
+
+For the third plot of number of pickups per day, we observe an initial spike, followed by a low on December 28, a rise from December 29 to January 6, a fall from January 7 to 13, and significant fluctuations from January 14 onwards.
+
+For the fourth plot of proportion of social screen time per day, we observe a slight downwards trend over the entire observation period, with spikes on January 2 and 6.
+
+For the fifth plot of duration per use per day, we observe elevated levels from December 28 to New Year's Eve and from January 9 onwards, with a spike on January 13. Similar to the first plot, we see a spike towards the end of the observation period, which may be due to an anomaly in the sensor function for these days.
+
+## 2b
+
+```{r message = FALSE}
+# Create scatterplot matrix for variables of interest
+ggpairs(data, columns = c("Total.ST.min",
+                          "Social.ST.min",
+                          "Pickups",
+                          "Social.ST.prop",
+                          "Duration.per.use"),
+        columnLabels = c("Total Screen Time",
+                         "Social Screen Time",
+                         "Total Pickups",
+                         "Social Screen Time Proportion",
+                         "Duration per use")) +
+  theme_bw() +
+  theme(text = element_text(size = 5))
+```
+
+Total screen time appears to be linearly associated with each of the other four variables with the exception of social screen time. Of these linear associations, the strongest, and only positive one, appears to be between total screen time and duration per use, with $R^2$ value of $0.844$. This is unsurprisingly, given the duration per use was calculated using total screen time. However, even the negative associations are relatively strong, which also is perhaps unsurprising given that the variables are all related to screen time.
+
+Social screen time appears to only be linearly associated with the social screen time proportion variable, which again is unsurprising given that social screen time proportion was calculated using social screen time. The linear association between these two variables is positive, with $R^2$ value of $0.771$. This result might suggest that time was spent on social media only when necessary, rather than as a function of pickups or total screen time.
+
+Outside of those relationships already discussed, total pickups is positively associated with social screen time proportion, and strongly negatively associated with duration per use. Finally, social screen time proportion is slightly negatively associated with duration per use.
+
+Among all the pairs of variables, the correlation between duration per use and total screen time is the highest, with $R^2$ value of $0.844$, which as discussed earlier is unsurprising given that duration per use was calculated using total screen time.
+
+## 2c
+
+```{r}
+# Create plotting grid
+par(mfrow = c(2, 3))
+
+# Create occupation time curve for each of the five time series
+tot.st.min.occ <- rep(0, 15)
+for(i in 0:14) {
+  tot.st.min.occ[i+1] <- nrow(filter(data, Total.ST.min >= i*100))/nrow(data)
+}
+plot(c(0, 100, 200, 300, 400, 500,
+       600, 700, 800, 900, 1000,
+       1100, 1200, 1300, 1400),
+     tot.st.min.occ,
+     xlab = "Total Screen Time (min): 'c'",
+     ylab = "P(X >= c)",
+     main = "Occupation Time Curve for Total Screen Time",
+     cex.lab = 0.8,
+     cex.main = 0.7)
+
+soc.st.min.occ <- rep(0, 13)
+for(i in 0:11) {
+  soc.st.min.occ[i+1] <- nrow(filter(data, Social.ST.min >= i*5))/nrow(data)
+}
+plot(c(0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60),
+     soc.st.min.occ,
+     xlab = "Social Screen Time (min): 'c'",
+     ylab = "P(X >= c)",
+     main = "Occupation Time Curve for Social Screen Time",
+     cex.lab = 0.8,
+     cex.main = 0.7)
+
+pickups.occ <- rep(0, 23)
+for(i in 0:21) {
+  pickups.occ[i+1] <- nrow(filter(data, Pickups >= i*10))/nrow(data)
+}
+plot(c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+       110, 120, 130, 140, 150, 160, 170, 180, 190,
+       200, 210, 220),
+     pickups.occ,
+     xlab = "Number of Pickups: 'c'",
+     ylab = "P(X >= c)",
+     main = "Occupation Time Curve for Number of Pickups",
+     cex.lab = 0.8,
+     cex.main = 0.7)
+
+soc.st.prop.occ <- rep(0, 20)
+for(i in 0:18) {
+  soc.st.prop.occ[i+1] <- nrow(filter(data, Social.ST.prop >= i*0.005))/nrow(data)
+}
+plot(c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3,
+       0.35, 0.4, 0.45, 0.5, 0.55, 0.6,
+       0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95),
+     soc.st.prop.occ,
+     xlab = "Proportion of Social Screen Time: 'c'",
+     ylab = "P(X >= c)",
+     main = "Occupation Time Curve for Proportion of Social Screen Time",
+     cex.lab = 0.8,
+     cex.main = 0.5)
+
+duration.occ <- rep(0, 28)
+for(i in 0:26) {
+  duration.occ[i+1] <- nrow(filter(data, Duration.per.use >= i))/nrow(data)
+}
+plot(c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+       10, 11, 12, 13, 14, 15, 16, 17, 18,
+       19, 20, 21, 22, 23, 24, 25, 26, 27),
+     duration.occ,
+     xlab = "Duration per Use (min): 'c'",
+     ylab = "P(X >= c)",
+     main = "Occupation Time Curve for Duration per Use",
+     cex.lab = 0.8,
+     cex.main = 0.7)
+```
+
+All of the occupation times curves demonstrate similar behavior. The total screen time occupation curve decreases near-linearly from 300 to 900 minute threshold values. The curve flattens for a few threshold values until reaching 0 at 1400 minutes. The social screen time occupation curve decreases near-linearly but reaches a 0 value more slowly than the total screen time occupation curve, relatively speaking. The number of pickups occupation curve stays flat to begin with and decreases at first quickly and then slowing down until the 0 value is reached. The social screen time proportion occupation curve decreases at a slightly faster rate at first and then slows down until reaching the 0 value. The duration per use occupation curve decreases rapidly at first, slows down quickly, then flattens for nearly half of the threshold values until reaching the 0 value.
+
+## 2d
+
+```{r}
+old_par <- par(no.readonly = TRUE) # Store old parameters
+
+# Create plotting grid and set plot parameters
+par(mfrow = c(2,3),
+    cex.main = 0.6,
+    cex.axis = 0.8,
+    cex.lab = 0.8)
+
+# Use acf function to plot autocorrelations for variables of interest
+acf(data$Total.ST.min,
+    main = "Autocorrelation for Total Screen Time",
+    plot = TRUE)
+
+acf(data$Social.ST.min,
+    main = "Autocorrelation for Social Screen Time",
+    plot = TRUE)
+
+acf(data$Pickups,
+    main = "Autocorrelation for Number of Pickups",
+    plot = TRUE)
+
+acf(data$Social.ST.prop,
+    main = "Autocorrelation for Proportion of Social Screen Time",
+    plot = TRUE)
+
+acf(data$Duration.per.use,
+    main = "Autocorrelation for Duration per Use",
+    plot = TRUE)
+
+par(old_par) # Restore old parameters
+```
+
+For total screen time, we observe that only 1 day lag is statistically significant. We may observe this result because total screen time could be affected by one's business on a day to day basis. For social screen time, we observe that there is no evidence of autocorrelation for any lag. We may observe this result because social screen time for the participant is affected by necessity, versus broader lifestyle trends. For pickups, we observe that 1 and 10 day lags are statistically significant. The 1 day lag is likely due to a reason similar to that given for total screen time. The 10 day lag may be due to travel experienced by the participant during the observation period that caused temporary changes in phone use behavior. For social screen time proportion, we observe that there is only evidence of 1 day lag. We may observe this result because total social screen time could be affected by one's business on a day to day basis. Finally, we observe evidence of 1 day lag for duration per use. We may observe this result for similar reasons given for other 1 day lags.
+
+## 3a-c
+
+```{r}
+# Convert times to degree angles
+data <- data %>% 
+  mutate(Pickup.1st = as.POSIXct(Pickup.1st, format = "%H:%M")) %>% 
+  mutate(Pickup.1st.angular = (hour(Pickup.1st)*60 + minute(Pickup.1st))/(24*60)*360)
+
+# Create circular object of first pickup times
+first.pickup.cir <- circular(data$Pickup.1st.angular,
+                             units = "degrees",
+                             template = "clock24")
+
+# Create plotting grid and plot times on 24-hour clock
+par(mfrow = c(1,2))
+
+plot(first.pickup.cir, # Scatterplot
+     col = "blue",
+     main = "Scatterplot - 1st Pickup Times")
+
+plot(first.pickup.cir, # Histogram
+     stack = TRUE,
+     bins = 24,
+     col = "blue",
+     main = "Histogram - 1st Pickup Times")
+```
+
+The scatterplot would suggest 2 groupings of points from midnight to 3:30am and another from 5:30am to 8am. The first grouping likely results from timezone differences between EST and CET, where the participant spent the holiday season.
+
+For the histogram plot, I have chosen to use 24 bins to represent the 24 hours in a day. A more granular choice of bins didn't allow for the modality of the data to be as easily observed.
+
+# Part II: Data Analysis
+
+## 4a
+
+The factor $S_t$ is needed in the Poisson distribution above to convert the units to the expected number of pickups on day $t$, which is the unit of interest. It can also be thought of as a normalizing factor that allows for day-to-day comparisons of daily pickup counts.
+
+## 4b
+
+```{r}
+# Fit Poisson glm with an offset
+pickup.glm <- glm(Pickups ~ 1 + offset(log(Total.ST.min)),
+                  data = data,
+                  family = "poisson")
+pickup.glm.sum <- summary(pickup.glm)
+
+lambda <- exp(coef(pickup.glm)[1]) # Get lambda estimate
+```
+
+The estimate for $\lambda$ in which $ln(S_t)$ is included in the model as an offset is `r lambda`.
+
+## 4c
+
+```{r warning = FALSE}
+# Create semester, weekday dummy, and pickups per hour variables
+data <- data %>% 
+  mutate(Weekday = c(0, rep(1, 5), 0, 0,
+                     rep(1, 5), 0, 0,
+                     rep(1, 5), 0, 0,
+                     rep(1, 5), 0, 0,
+                     rep(1, 5))) %>% 
+  mutate(Semester = ifelse(data$Date < as.Date("2024-01-10"), 0, 1)) %>% 
+  mutate(Pickups.per.hour = Pickups / (Total.ST.min / 60))
+
+# Run log-linear model for pickups per hour comparing weekday/semester statuses
+pickup.glm.2 <- glm(log(Pickups.per.hour) ~ Weekday + Semester,
+                    data = data,
+                    family = "poisson")
+summary(pickup.glm.2)
+```
+
+c.1
+
+:   There is no evidence for significantly different behavior of daily pickups between weekdays and weekends, with the $p$-value for the corresponding coefficient being significantly greater than $\alpha = 0.05$, at $0.828$.
+
+c.2
+
+:   There is no evidence for significantly different behavior of daily pickups after the winter semester began, with the $p$-value for the corresponding coefficient being greater than $\alpha = 0.05$, at $0.128$.
+
+## 5a
+
+```{r warning = FALSE}
+# Convert first pickup times to radians
+first.pickup.cir <- circular(first.pickup.cir * (pi/180),
+                             units = "radians",
+                             template = "clock24")
+
+# Estimate parameters of the von Mises distribution for Pickups
+pickup.vonmises <- mle.vonmises(first.pickup.cir)
+mu <- pickup.vonmises$mu
+lambda <- pickup.vonmises$kappa
+
+# Convert 8:30 AM to radians
+eight.thirty.rad <- (8*60 + 30)/(24*60) * 2 * pi
+
+# Use pvonmises to calculate the probability of a pickup after 8:30 AM
+pickup.prob <- 1 - pvonmises(eight.thirty.rad, mu, lambda)
+```
+
+The estimates for $\mu$ and $\lambda$ we obtain from the von Mises distribution based on the first pickups data are `r mu` and `r lambda`, respectively.
+
+Based on these estimates, we find that the probability that my first pickup is 8:30AM or later is `r pickup.prob`.
