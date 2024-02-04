@@ -332,7 +332,7 @@ For the histogram plot, I have chosen to use 24 bins to represent the 24 hours i
 
 ## 4a
 
-The factor $S_t$ is needed in the Poisson distribution above to convert the units to the expected number of pickups on day $t$, which is the unit of interest. It can also be thought of as a normalizing factor that allows for day-to-day comparisons of daily pickup counts.
+The factor $S_t$ is needed in the Poisson distribution above to convert the units to the expected number of pickups on day $t$, which is the unit of interest. It can also be thought of as a normalizing factor that allows for day-to-day comparisons of daily pickup counts. In other words, we adjust for day-to-day differences in total screen time to isolate the daily pickup rate in which we're interested.
 
 ## 4b
 
@@ -358,11 +358,10 @@ data <- data %>%
                      rep(1, 5), 0, 0,
                      rep(1, 5), 0, 0,
                      rep(1, 5))) %>% 
-  mutate(Semester = ifelse(data$Date < as.Date("2024-01-10"), 0, 1)) %>% 
-  mutate(Pickups.per.hour = Pickups / (Total.ST.min / 60))
+  mutate(Semester = ifelse(data$Date < as.Date("2024-01-10"), 0, 1))
 
 # Run log-linear model for pickups per hour comparing weekday/semester statuses
-pickup.glm.2 <- glm(log(Pickups.per.hour) ~ Weekday + Semester,
+pickup.glm.2 <- glm(Pickups ~ Weekday + Semester + offset(log(Total.ST.min)),
                     data = data,
                     family = "poisson")
 summary(pickup.glm.2)
@@ -370,11 +369,11 @@ summary(pickup.glm.2)
 
 c.1
 
-:   There is no evidence for significantly different behavior of daily pickups between weekdays and weekends, with the $p$-value for the corresponding coefficient being significantly greater than $\alpha = 0.05$, at $0.828$.
+:   There is evidence for significantly different behavior of daily pickups between weekdays and weekends, with the $p$-value for the corresponding coefficient being less than $\alpha = 0.05$, at $0.0225$.
 
 c.2
 
-:   There is no evidence for significantly different behavior of daily pickups after the winter semester began, with the $p$-value for the corresponding coefficient being greater than $\alpha = 0.05$, at $0.128$.
+:   There is evidence for significantly different behavior of daily pickups after the winter semester began, with the $p$-value for the corresponding coefficient being less than $\alpha = 0.05$, at $< 2\text{e-}16$.
 
 ## 5a
 
