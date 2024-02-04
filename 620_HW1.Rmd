@@ -174,7 +174,7 @@ ggpairs(data, columns = c("Total.ST.min",
   theme(text = element_text(size = 5))
 ```
 
-Total screen time appears to be linearly associated with each of the other four variables with the exception of social screen time. Of these linear associations, the strongest, and only positive one, appears to be between total screen time and duration per use, with $R^2$ value of $0.844$. This is unsurprisingly, given the duration per use was calculated using total screen time. However, even the negative associations are relatively strong, which also is perhaps unsurprising given that the variables are all related to screen time.
+Total screen time appears to be linearly associated with each of the other four variables with the exception of social screen time. Of these linear associations, the strongest, and only positive one, appears to be between total screen time and duration per use, with $R^2$ value of $0.844$. This is unsurprising, given the duration per use was calculated using total screen time. However, even the negative associations are relatively strong, which also is perhaps unsurprising given that the variables are all related to screen time.
 
 Social screen time appears to only be linearly associated with the social screen time proportion variable, which again is unsurprising given that social screen time proportion was calculated using social screen time. The linear association between these two variables is positive, with $R^2$ value of $0.771$. This result might suggest that time was spent on social media only when necessary, rather than as a function of pickups or total screen time.
 
