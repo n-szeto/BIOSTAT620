@@ -21,7 +21,7 @@ library(gridExtra)
 library(dplyr)
 ```
 
-The code for this document can be found via Github [here](https://github.com/n-szeto/BIOSTAT620).
+The code for this document can be found at the following link: [http://tinyurl.com/n-szeto-620HW1](http://tinyurl.com/n-szeto-620HW1).
 
 # Part 1: Data Collection and Processing
 
