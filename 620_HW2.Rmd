@@ -1,0 +1,194 @@
+---
+title: "BIOSTAT 620 HW2"
+author: "Nathan Szeto"
+date: "`r Sys.Date()`"
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/Users/nszeto/Documents/UMich/BIOSTAT 620/Data:Code")
+setwd(knitr::opts_knit$get('root.dir'))
+
+# Load packages
+library(readxl)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(circular)
+library(gridExtra)
+library(dplyr)
+library(systemfit)
+library(car)
+```
+
+The code for this document can be found at the following link: [http://tinyurl.com/n-szeto-620HW2](http://tinyurl.com/n-szeto-620HW2).
+
+# Problem 1
+## 1a
+Selected answers: B [Maybe A and C]
+
+## 1b
+Selected answers: C
+
+## 1c
+Selected answers: A, D
+
+## 1d
+Selected answers: B, D [Maybe C]
+
+## 1e
+Selected answers: A, B, D [Maybe C]
+
+
+# Problem 2
+
+## 2a
+```{r}
+# Read in data
+data <- read.csv("ScreenTime_HW2_NSzeto.csv")
+
+data <- data %>%
+  mutate(Date = as.Date(Date, format = "%m/%d/%y")) %>%
+  mutate(Total.ST.min.lag = lag(Total.ST.min, 1)) %>% 
+  mutate(Social.ST.min.lag = lag(Social.ST.min, 1)) %>%
+  mutate(Weekday = c(0, rep(1, 5), 0, 0,
+                     rep(1, 5), 0, 0,
+                     rep(1, 5), 0, 0,
+                     rep(1, 5), 0, 0,
+                     rep(1, 4))) %>%
+  mutate(Semester = ifelse(Date < as.Date("2024-01-10"), 0, 1))
+
+models <- list(
+  mod.1 = Total.ST.min ~ Total.ST.min.lag + Weekday + Semester,
+  mod.2 = Social.ST.min ~ Social.ST.min.lag + Weekday + Semester
+)
+
+# mod.1.fit <- lm(Total.ST.min ~ Total.ST.min.lag + Weekday + Semester, data = data)
+# mod.2.fit <- lm(Social.ST.min ~ Social.ST.min.lag + Weekday + Semester, data = data)
+# summary(mod.1.fit)
+# summary(mod.2.fit)
+
+
+sur.fit <- systemfit(models, data = data, method = "SUR")
+summary(sur.fit)
+sur.coefs <- coef(sur.fit)
+```
+
+For model 1, we have the following coefficients:
+
+- $\beta_0 =$ `r sur.coefs[1]`
+
+- $\beta_1 =$ `r sur.coefs[2]`
+
+- $\beta_2 =$ `r sur.coefs[3]`
+
+- $\beta_3 =$ `r sur.coefs[4]`
+
+For model 2, we have the following coefficients:
+
+- $\beta_0 =$ `r sur.coefs[5]`
+
+- $\beta_1 =$ `r sur.coefs[6]`
+
+- $\beta_2 =$ `r sur.coefs[7]`
+
+- $\beta_3 =$ `r sur.coefs[8]`
+
+## 2b
+
+The only significant covariate (at significance level of $\alpha = 0.05$) across the two models is the dummy variable for semester status in model 2. From this result we may conclude that there is evidence of a significant difference in the average estimated daily social screen time usage before and after the start of the winter semester for the user, controlling for 1-day social screen time lag and weekday status. Specifically, we found that the average estimated daily social screen time usage is `r -1*sur.coefs[8]` minutes lower after the start of the winter semester compared to before the start of the winter semester.
+
+## 2c
+```{r}
+linearHypothesis(sur.fit, c("mod.1_Semester = 0", "mod.2_Semester = 0"))
+```
+
+Based on the results of the linear hypothesis test, we have evidence to suggest (at significance level of $\alpha = 0.05$) that at least one of the average estimated effects of the semester status in the two models is significantly different from zero. This result is consistent with the findings from the individual model fits.
+
+
+# Problem 3
+
+## 3a
+The dummy variable for treatment status is independent of the error in an RCT because the treatment status is randomly assigned to the subjects. This random assignment ensures that the treatment status is not influenced by any other factors that may affect the outcome of interest. Therefore, the treatment status is independent of the error in an RCT.
+
+## 3b
+In model (1) the parameter $\beta_1$ actually represents the difference in the average estimated effect of drug B compared to drug A. There is no one parameter which captures the average estimated treatment effect of drug A or B. Rather, the effect of drug A is captured by the intercept term $\beta_0$ plus $\beta_1$ and the effect of drug B is captured by the intercept term $\beta_0$ minus $\beta_1$.
+
+## 3c
+Normally we would include a confounding covariate $Z$ into the model to control for any variation in the response not captured by the treatment status. In (3a), however, we argued that the treatment status is independent of the error in an RCT. This independence implies that $\beta_1$ would be unaffected by the inclusion of any confounding covariates, such as $Z$, since $Z$ would capture some of this independent error.
+
+## 3d
+The estimate of the causal effect (i.e. ATE) when drug B is a placebo is simply given by $\beta_1$. This is because the estimate of the causal effect is the difference in the average estimated effect of drug B compared to drug A. When drug B is a placebo, the average estimated effect of drug B is simply the average estimated effect of drug A, which is given by $\beta_1$.
+
+[CHECK THIS ANSWER]
+
+
+# Problem 4
+
+## 4a
+We have $Var(\tilde{\epsilon}) = Var(\beta_1\epsilon + e) = \beta_1^2Var(\epsilon) + Var(e) = \beta_1^2\sigma_{\epsilon}^2 + \sigma_e^2$.
+
+## 4b
+Assuming independence of $\alpha_1$ and $\beta_1$, we have
+$Var(\hat{\widetilde{\beta}}_1) = \hat{\beta}_1^2 Var(\hat{\alpha}_1) + \hat{\alpha}_1^2 Var(\hat{\beta}_1)$.
+
+Without this independence, we have
+$Var(\hat{\widetilde{\beta}}_1) = E[\alpha_1^2] Var(\beta_1) + E[\beta_1^2] Var(\alpha_1) + 2 E[\alpha_1] E[\beta_1] Cov(\alpha_1, \beta_1)$.
+
+## 4c
+[COME BACK TO]
+
+## 4d
+The major steps would include:
+1. Draw a large number of bootstrap samples from the original data.
+2. For each bootstrap sample, fit the IV models and obtain the estimated coefficient $\hat{\beta}_1$.
+3. Calculate the variance of the estimated coefficient $\hat{\beta}_1$ for each bootstrap sample.
+
+The corresponding pseudocode might be given as follows:
+
+```{r eval = FALSE}
+# Set the number of bootstrap samples
+B <- 1000
+
+for (b in 1:B) {
+  # Draw a bootstrap sample
+  data.b <- sample(data, replace = TRUE)
+  
+  # Fit the IV model
+  iv.mod.b.1 <- ivreg(y ~ z, data = data.b)
+  iv.mod.b.2 <- ivreg(x ~ z, data = data.b)
+  
+  # Store the estimated coefficient
+  beta1.b[b] <- coef(iv.mod.b.1)[2]/coef(iv.mod.b.2)[2]
+}
+
+# Calculate estimated variance from bootstrap samples
+var.beta1 <- var(beta1.b)
+```
+
+
+# Problem 5
+\begin{align*}
+\intertext{We have the following models given in Section 4, Chapter II of the notes:}
+\text{model (5):}\quad & y_i = \beta_0^F + \beta_1^F Z_i + \beta_2^F X_{1i} + \varepsilon_i^F, & \varepsilon_i^F \sim N(0, \sigma^2_F) \\
+\text{model (6):}\quad & y_i = \beta_0^M + \beta_1^M Z_i + \beta_2^M X_{1i} + \varepsilon_i^M, & \varepsilon_i^M \sim N(0, \sigma^2_M) \\
+\text{model (7):}\quad & y_i = \beta_0 + \beta_1 Z_i + \beta_2 X_{1i} + \beta_3 X_{2i} + \beta_4 (Z_i \times X_{1i}) + \beta_5 (X_{1i} \times X_{2i}) + \varepsilon_i, & \varepsilon_i \sim N(0, \sigma^2) \\
+\intertext{where all error terms are iid. Let $X_{2i} = 0 \Leftrightarrow$ female, $X_{2i} = 1 \Leftrightarrow$ male, so the model (7) can be written for females and males separately as follows:}
+\text{model (7), female:}\quad & y_i = \beta_0 + \beta_1 Z_i + \beta_2 X_{1i} + \varepsilon_i \\
+\text{model (7), male:}\quad & y_i = (\beta_0 + \beta_3) + (\beta_1 + \beta_4) Z_i + (\beta_2 + \beta_5) X_{1i} + \varepsilon_i \\
+\intertext{Equating the female version of model (7) to model (5) and the male version of model (7) to model (6), we derive the following relationships:}
+& \beta_0 = \beta_0^F, \quad \beta_1 = \beta_1^F, \quad \beta_2 = \beta_2^F \\
+& \beta_0 + \beta_3 = \beta_0^M, \quad \beta_1 + \beta_4 = \beta_1^M, \quad \beta_2 + \beta_5 = \beta_2^M \\
+\intertext{Some rearranging will yield the following one-to-one correspondences of the parameters in model (7) with the parameters in models (5) and (6):}
+& \beta_0 = \beta_0^F \\
+& \beta_1 = \beta_1^F \\
+& \beta_2 = \beta_2^F \\
+& \beta_3 = \beta_0^M - \beta_0^F \\
+& \beta_4 = \beta_1^M - \beta_1^F \\
+& \beta_5 = \beta_2^M - \beta_2^F \\
+& \varepsilon_i, \varepsilon_i^M, \varepsilon_i^F \sim N(0, \sigma^2) \\
+\intertext{and the observations are independent (the $\varepsilon's$ are not independent of each other). Note: We are told that to derive model (7), we assume that $\sigma^2_F = \sigma^2_M \Rightarrow \sigma^2_F = \sigma^2_M = \sigma^2$. This result implies the last relation.}
+\end{align*}
+
