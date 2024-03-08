@@ -27,7 +27,7 @@ The code for this document can be found at the following link: [http://tinyurl.c
 
 # Problem 1
 ## 1a
-Selected answers: B [Maybe A and C]
+Selected answers: B, C
 
 ## 1b
 Selected answers: C
@@ -36,10 +36,10 @@ Selected answers: C
 Selected answers: A, D
 
 ## 1d
-Selected answers: B, D [Maybe C]
+Selected answers: B, D
 
 ## 1e
-Selected answers: A, B, D [Maybe C]
+Selected answers: A, B
 
 
 # Problem 2
@@ -114,15 +114,13 @@ Based on the results of the linear hypothesis test, we have evidence to suggest 
 The dummy variable for treatment status is independent of the error in an RCT because the treatment status is randomly assigned to the subjects. This random assignment ensures that the treatment status is not influenced by any other factors that may affect the outcome of interest. Therefore, the treatment status is independent of the error in an RCT.
 
 ## 3b
-In model (1) the parameter $\beta_1$ actually represents the difference in the average estimated effect of drug B compared to drug A. There is no one parameter which captures the average estimated treatment effect of drug A or B. Rather, the effect of drug A is captured by the intercept term $\beta_0$ plus $\beta_1$ and the effect of drug B is captured by the intercept term $\beta_0$ minus $\beta_1$.
+In model (1) the parameter $\beta_1$ actually represents half of the difference in the average estimated effect of drug B compared to drug A. There is no one parameter which captures the average estimated treatment effect of drugs A or B. Rather, the effect of drug A is captured by the intercept term $\beta_0$ plus $\beta_1$ and the effect of drug B is captured by the intercept term $\beta_0$ minus $\beta_1$.
 
 ## 3c
 Normally we would include a confounding covariate $Z$ into the model to control for any variation in the response not captured by the treatment status. In (3a), however, we argued that the treatment status is independent of the error in an RCT. This independence implies that $\beta_1$ would be unaffected by the inclusion of any confounding covariates, such as $Z$, since $Z$ would capture some of this independent error.
 
 ## 3d
-The estimate of the causal effect (i.e. ATE) when drug B is a placebo is simply given by $\beta_1$. This is because the estimate of the causal effect is the difference in the average estimated effect of drug B compared to drug A. When drug B is a placebo, the average estimated effect of drug B is simply the average estimated effect of drug A, which is given by $\beta_1$.
-
-[CHECK THIS ANSWER]
+The estimate of the causal effect (i.e. ATE) when drug B is a placebo is given by $2\cdot\beta_1$. Because drug A is coded by $X_1 = 1$ and drug B is coded by $X_2 = -1$, we determine that $\beta_1$ itself is only half of the difference in effect between drugs A and B. Therefore, if drug B is a placebo, the total estimated causal effect of drug A compared to a placebo is given by $2\cdot\beta_1$.
 
 
 # Problem 4
@@ -131,20 +129,19 @@ The estimate of the causal effect (i.e. ATE) when drug B is a placebo is simply 
 We have $Var(\tilde{\epsilon}) = Var(\beta_1\epsilon + e) = \beta_1^2Var(\epsilon) + Var(e) = \beta_1^2\sigma_{\epsilon}^2 + \sigma_e^2$.
 
 ## 4b
-Assuming independence of $\alpha_1$ and $\beta_1$, we have
-$Var(\hat{\widetilde{\beta}}_1) = \hat{\beta}_1^2 Var(\hat{\alpha}_1) + \hat{\alpha}_1^2 Var(\hat{\beta}_1)$.
-
-Without this independence, we have
-$Var(\hat{\widetilde{\beta}}_1) = E[\alpha_1^2] Var(\beta_1) + E[\beta_1^2] Var(\alpha_1) + 2 E[\alpha_1] E[\beta_1] Cov(\alpha_1, \beta_1)$.
+From Chapter II: Design of Health Studies, pgs 9-10, we observe that the model for $Y$ can be written as $Y = \tilde{\beta}_0 + \tilde{\beta}_1Z + \tilde{e}$. This expression is a simple linear regression model. We also know from standard linear regression theory that $\tilde{\beta}_1$ can be written as $\tilde{\beta}_1 = (Z^TZ)^{-1}Z^TY$ for a simple linear regression model. Therefore, the variance of $\tilde{\beta}_1$ is given by $Var(\tilde{\beta}) = \tilde{\sigma}^2(Z^TZ)^{-1}$, where $\tilde{\sigma}^2$ is the variance associated with $\tilde{e}$. Therefore, we have $Var(\hat{\widetilde{\beta}}_1) = \hat{\tilde{\sigma}}^2(Z^TZ)^{-1}$.
 
 ## 4c
-[COME BACK TO]
+From Chapter II: Design of Health Studies, pgs 9-10, we observe that the model for $X$ can be written as $X = \alpha_0 + \alpha_1Z + \epsilon$. This expression is a simple linear regression model. We also know from standard linear regression theory that $\alpha_1$ can be written as $\alpha_1 = (Z^TZ)^{-1}Z^TX$ for a simple linear regression model. Therefore, the variance of $\alpha_1$ is given by $Var(\alpha_1) = \sigma^2(Z^TZ)^{-1}$, where $\sigma$ is the variance associated with $\epsilon$. Therefore, we have $Var(\hat{\alpha}_1) = \hat{\sigma}^2(Z^TZ)^{-1}$.
 
 ## 4d
 The major steps would include:
+
 1. Draw a large number of bootstrap samples from the original data.
-2. For each bootstrap sample, fit the IV models and obtain the estimated coefficient $\hat{\beta}_1$.
-3. Calculate the variance of the estimated coefficient $\hat{\beta}_1$ for each bootstrap sample.
+
+2. For each bootstrap sample, fit the IV models for $Y$ and $X$ and obtain the estimated coefficient $\hat{\beta}_1$.
+
+3. Obtain the estimated variance of $\hat{\beta}_1$ by taking the variance of the estimated coefficients from the bootstrap samples.
 
 The corresponding pseudocode might be given as follows:
 
