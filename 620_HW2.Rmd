@@ -137,21 +137,23 @@ From Chapter II: Design of Health Studies, pgs 9-10, we observe that the model f
 ## 4d
 The major steps would include:
 
-1. Draw a large number of bootstrap samples from the original data.
+1. Draw a large number (say $M$) of bootstrap samples, with replacement, from the original data, denoted $(Z_i, X_i, Y_i)$, where each bootstrap sample is that same size as the original sample.
 
-2. For each bootstrap sample, fit the IV models for $Y$ and $X$ and obtain the estimated coefficient $\hat{\beta}_1$.
+2. For each bootstrap sample, denoted $(Z^*, X^*, Y^*)$, fit the IV models for $Y^*$ and $X^*$ with the instrumental variable $Z^*$.
 
-3. Obtain the estimated variance of $\hat{\beta}_1$ by taking the variance of the estimated coefficients from the bootstrap samples.
+3. Calculate the estimated value of $\beta_1$ for a given bootstrap by dividing $\hat{\tilde{\beta}}_1$ from the IV model for $Y^*$ by $\hat{\alpha}$ from the IV model for $X^*$. There will ultimately be $M$ copies of such estimates for $\beta_1$.
+
+5. Calculate the estimated variance of $\hat{\beta}_1$ by taking the variance of the $M$ estimates of $\beta_1$. Similarly, one can obtain a boostrapped estimate of $\beta_1$ by taking the mean of the $M$ estimates of $\beta_1$.
 
 The corresponding pseudocode might be given as follows:
 
 ```{r eval = FALSE}
 # Set the number of bootstrap samples
-B <- 1000
+B <- M
 
 for (b in 1:B) {
   # Draw a bootstrap sample
-  data.b <- sample(data, replace = TRUE)
+  data.b <- sample(data, replace = TRUE, size = nrow(data))
   
   # Fit the IV model
   iv.mod.b.1 <- ivreg(y ~ z, data = data.b)
@@ -161,7 +163,8 @@ for (b in 1:B) {
   beta1.b[b] <- coef(iv.mod.b.1)[2]/coef(iv.mod.b.2)[2]
 }
 
-# Calculate estimated variance from bootstrap samples
+# Calculate estimated value and variance of beta1 from the bootstrap samples
+est.beta1 <- mean(beta1.b)
 var.beta1 <- var(beta1.b)
 ```
 
