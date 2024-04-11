@@ -1,0 +1,286 @@
+---
+title: "BIOSTAT 620 Homework 4"
+author: "Nathan Szeto"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Import libraries
+library(here)
+library(knitr)
+library(tidyverse)
+library(readxl)
+library(Matching)
+library(tableone)
+library(vctrs)
+library(conflicted)
+library(kableExtra)
+library(broom)
+library(conflicted)
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+
+# Set document options
+opts_chunk$set(echo = TRUE)
+opts_knit$set(root.dir = here())
+setwd(opts_knit$get('root.dir'))
+
+# Import datasets
+df1 <- read_excel("ScreenTime-hw3Q3.xlsx", sheet = 1)
+df2 <- read_excel("ScreenTime-hw3Q3.xlsx", sheet = 2)
+```
+
+## 1a-c
+
+See the last two pages for the responses to Problem 1.
+
+## 2a
+```{r}
+# Identify individuals in Treatment B
+df2.B <- df2 %>% 
+  filter(Treatment == "B")
+
+# Run Poisson GLM model for each individual with Pickups as the outcome
+models <- df1 %>% 
+  filter(pseudo_id %in% df2.B$pseudo_id) %>% 
+  mutate(Weekday = ifelse(Day %in% c("Sa", "Su"), 0, 1),
+         Intervention = ifelse(Phase == "Treatment", 1, 0),
+         Pickups.lag = ifelse(time == 1, NA, log(dplyr::lag(Pickups, 1)))) %>% 
+  group_by(pseudo_id) %>% 
+  do(glm = glm(Pickups ~ Pickups.lag + Intervention + Weekday + offset(log(Tot.Scr.Time)), data = ., family = poisson(link = "log")))
+
+# Format model outputs
+table1 <- tidy(models$glm[[1]])
+table2 <- tidy(models$glm[[2]])
+table3 <- tidy(models$glm[[3]])
+table4 <- tidy(models$glm[[4]])
+table5 <- tidy(models$glm[[5]])
+table6 <- tidy(models$glm[[6]])
+table7 <- tidy(models$glm[[7]])
+table8 <- tidy(models$glm[[8]])
+sum.df <- cbind(vec_rep_each(df2.B$pseudo_id, 4), rbind(table1, table2, table3, table4, table5, table6, table7, table8))
+colnames(sum.df) <- c("pseudo_id", "term", "estimate", "std.error", "statistic", "p.value")
+kable_minimal(kbl(sum.df))
+```
+
+## 2b
+```{r}
+denom.calc <- function(x, nsites){
+  denom <- 0
+  for(i in 1:nsites){
+    denom <- denom + 1/(x[i]^2)
+  }
+  return(denom)
+}
+
+num.calc <- function(x, y, nsites){
+  num <- 0
+  for(i in 1:nsites){
+    num <- num + (x[i]/(y[i]^2))
+  }
+  return(num)
+}
+
+meta.est <- function(df, nsites){
+  b0 <- filter(df, term == "(Intercept)")$estimate
+  b1 <- filter(df, term == "Pickups.lag")$estimate
+  b2 <- filter(df, term == "Intervention")$estimate
+  b3 <- filter(df, term == "Weekday")$estimate
+
+  se0 <- filter(df, term == "(Intercept)")$std.error
+  se1 <- filter(df, term == "Pickups.lag")$std.error
+  se2 <- filter(df, term == "Intervention")$std.error
+  se3 <- filter(df, term == "Weekday")$std.error
+  
+  b0.denom <- denom.calc(se0, nsites)
+  b1.denom <- denom.calc(se1, nsites)
+  b2.denom <- denom.calc(se2, nsites)
+  b3.denom <- denom.calc(se3, nsites)
+  
+  b0.num <- num.calc(b0, se0, nsites)
+  b1.num <- num.calc(b1, se1, nsites)
+  b2.num <- num.calc(b2, se2, nsites)
+  b3.num <- num.calc(b3, se3, nsites)
+  
+  b0.meta <- b0.num/b0.denom
+  b1.meta <- b1.num/b1.denom
+  b2.meta <- b2.num/b2.denom
+  b3.meta <- b3.num/b3.denom
+  
+  se0.meta <- 1/sqrt(b0.denom)
+  se1.meta <- 1/sqrt(b1.denom)
+  se2.meta <- 1/sqrt(b2.denom)
+  se3.meta <- 1/sqrt(b3.denom)
+  
+  return(data.frame(term = c("(Intercept)", "Pickups.lag", "Intervention", "Weekday"),
+                    estimate = c(b0.meta, b1.meta, b2.meta, b3.meta),
+                    std.error = c(se0.meta, se1.meta, se2.meta, se3.meta)))
+}
+meta.df <- meta.est(sum.df, 8)
+kable_minimal(kbl(meta.df))
+```
+
+## 2c
+```{r}
+# Calculate 95% CI for meta-analysis
+meta.df <- mutate(meta.df,
+                  lower = estimate - 1.96*std.error,
+                  upper = estimate + 1.96*std.error)
+```
+
+We calculate the 95\% CI for $B$ to be (`r meta.df$lower[3]`, `r meta.df$upper[3]`). This result suggests that intervention $B$ (competition) actually increases the number of pickups compared to the pre-intervention baseline at $\alpha = 0.05$ when controlling for the other covariates when performing meta-learning across individuals who received Treatment B.
+
+## 2d
+
+Two advantages of the meta-learning method relative to the federated learning method are:
+
+  1. There exist closed-form solutions for estimates/SES, even for non-linear models. With closed-form solutions we can achieve faster computation times.
+  2. Flexible in the sense that only point estimates and corresponding standard errors are needed to perform meta-analysis, regardless of the specific statistical problem. This allows for easy integration of different models and datasets.
+  
+Two disadvantages of the meta-learning method relative to the federated learning method are:
+
+  1. The meta-learning method may not yield the oracle solutions for OLS estimators, whereas federated learning will do so.
+  2. Due to its simplicity, practitioners may be tempted to use meta-learning in situations where it is not appropriate, especially given the rather strong necessary assumption that the variances of the beta parameters are homogeneous.
+  
+## 3a
+
+```{r}
+# Identify individuals in Treatment A
+df2.A <- df2 %>% 
+  filter(Treatment == "A")
+
+# Copy baseline covariates from df2 to df1 by pseudo_id
+df.tot <- df1 %>% left_join(df2, by = "pseudo_id")
+
+# Run Poisson GLM model Treatments A and B with Pickups as the outcome
+models.A <- df.tot %>% 
+  filter(pseudo_id %in% df2.A$pseudo_id) %>% 
+  mutate(Weekday = ifelse(Day %in% c("Sa", "Su"), 0, 1),
+         Intervention = ifelse(Phase == "Treatment", 1, 0),
+         Pickups.lag = ifelse(time == 1, NA, log(dplyr::lag(Pickups, 1)))) %>% 
+  do(glm = glm(Pickups ~ Pickups.lag + Intervention + Weekday + sex + age + pets + siblings + offset(log(Tot.Scr.Time)),
+               data = .,
+               family = poisson(link = "log")))
+
+models.B <- df.tot %>% 
+  filter(pseudo_id %in% df2.B$pseudo_id) %>% 
+  mutate(Weekday = ifelse(Day %in% c("Sa", "Su"), 0, 1),
+         Intervention = ifelse(Phase == "Treatment", 1, 0),
+         Pickups.lag = ifelse(time == 1, NA, log(dplyr::lag(Pickups, 1)))) %>% 
+  do(glm = glm(Pickups ~ Pickups.lag + Intervention + Weekday + sex + age + pets + siblings + offset(log(Tot.Scr.Time)),
+               data = .,
+               family = poisson(link = "log")))
+
+# Format model outputs
+sum.df.A <- tidy(models.A$glm[[1]])
+colnames(sum.df.A) <- c("term", "estimate", "std.error", "statistic", "p.value")
+
+sum.df.B <- tidy(models.B$glm[[1]])
+colnames(sum.df.B) <- c("term", "estimate", "std.error", "statistic", "p.value")
+
+sum.df.AB <- rbind(sum.df.A, sum.df.B)
+
+# Define Meta-Learning function including baseline covariates
+meta.est <- function(df, nsites){
+  b0 <- filter(df, term == "(Intercept)")$estimate
+  b1 <- filter(df, term == "Pickups.lag")$estimate
+  b2 <- filter(df, term == "Intervention")$estimate
+  b3 <- filter(df, term == "Weekday")$estimate
+  b4 <- filter(df, term == "sex")$estimate
+  b5 <- filter(df, term == "age")$estimate
+  b6 <- filter(df, term == "pets")$estimate
+  b7 <- filter(df, term == "siblings")$estimate
+
+  se0 <- filter(df, term == "(Intercept)")$std.error
+  se1 <- filter(df, term == "Pickups.lag")$std.error
+  se2 <- filter(df, term == "Intervention")$std.error
+  se3 <- filter(df, term == "Weekday")$std.error
+  se4 <- filter(df, term == "sex")$std.error
+  se5 <- filter(df, term == "age")$std.error
+  se6 <- filter(df, term == "pets")$std.error
+  se7 <- filter(df, term == "siblings")$std.error
+
+  b0.denom <- denom.calc(se0, nsites)
+  b1.denom <- denom.calc(se1, nsites)
+  b2.denom <- denom.calc(se2, nsites)
+  b3.denom <- denom.calc(se3, nsites)
+  b4.denom <- denom.calc(se4, nsites)
+  b5.denom <- denom.calc(se5, nsites)
+  b6.denom <- denom.calc(se6, nsites)
+  b7.denom <- denom.calc(se7, nsites)
+
+  b0.num <- num.calc(b0, se0, nsites)
+  b1.num <- num.calc(b1, se1, nsites)
+  b2.num <- num.calc(b2, se2, nsites)
+  b3.num <- num.calc(b3, se3, nsites)
+  b4.num <- num.calc(b4, se4, nsites)
+  b5.num <- num.calc(b5, se5, nsites)
+  b6.num <- num.calc(b6, se6, nsites)
+  b7.num <- num.calc(b7, se7, nsites)
+
+  b0.meta <- b0.num/b0.denom
+  b1.meta <- b1.num/b1.denom
+  b2.meta <- b2.num/b2.denom
+  b3.meta <- b3.num/b3.denom
+  b4.meta <- b4.num/b4.denom
+  b5.meta <- b5.num/b5.denom
+  b6.meta <- b6.num/b6.denom
+  b7.meta <- b7.num/b7.denom
+
+  se0.meta <- 1/sqrt(b0.denom)
+  se1.meta <- 1/sqrt(b1.denom)
+  se2.meta <- 1/sqrt(b2.denom)
+  se3.meta <- 1/sqrt(b3.denom)
+  se4.meta <- 1/sqrt(b4.denom)
+  se5.meta <- 1/sqrt(b5.denom)
+  se6.meta <- 1/sqrt(b6.denom)
+  se7.meta <- 1/sqrt(b7.denom)
+
+  return(data.frame(term = c("(Intercept)", "Pickups.lag", "Intervention", "Weekday", "sex", "age", "pets", "siblings"),
+                    estimate = c(b0.meta, b1.meta, b2.meta, b3.meta, b4.meta, b5.meta, b6.meta, b7.meta),
+                    std.error = c(se0.meta, se1.meta, se2.meta, se3.meta, se4.meta, se5.meta, se6.meta, se7.meta)))
+}
+
+# Output meta-learning results
+meta.df <- meta.est(sum.df.AB, 2)
+kable_minimal(kbl(meta.df))
+```
+
+## 3b
+```{r}
+# Calculate 95% CI for meta-learning across Treatments A and B
+meta.df <- mutate(meta.df,
+                  lower = estimate - 1.96*std.error,
+                  upper = estimate + 1.96*std.error)
+```
+
+We calculate the 95\% CI for $B$ to be (`r meta.df$lower[3]`, `r meta.df$upper[3]`). This result suggests that intervention $B$ (competition) increases the number of pickups compared to the pre-intervention baseline at $\alpha = 0.05$ when controlling for the other covariates, and when the meta-learning is performed across interventions.
+
+## 3c
+```{r}
+models.AB <- df.tot %>% 
+  mutate(Weekday = ifelse(Day %in% c("Sa", "Su"), 0, 1),
+         Intervention = ifelse(Phase == "Treatment", 1, 0),
+         Pickups.lag = ifelse(time == 1, NA, log(dplyr::lag(Pickups, 1)))) %>% 
+  do(glm = glm(Pickups ~ Pickups.lag + Intervention + Weekday + sex + age + pets + siblings + offset(log(Tot.Scr.Time)),
+               data = .,
+               family = poisson(link = "log")))
+
+# Format model outputs
+sum.df.AB <- tidy(models.AB$glm[[1]])
+colnames(sum.df.AB) <- c("term", "estimate", "std.error", "statistic", "p.value")
+
+kable_minimal(kbl(sum.df.AB))
+
+# Calculate 95% CI for meta-analysis
+meta.df <- mutate(sum.df.AB,
+                  lower = estimate - 1.96*std.error,
+                  upper = estimate + 1.96*std.error)
+```
+
+We calculate the 95\% CI for $B$ to be (`r meta.df$lower[3]`, `r meta.df$upper[3]`). This result suggests that intervention $B$ (competition) actually increases the number of pickups compared to the pre-intervention baseline at $\alpha = 0.05$ when controlling for the other covariates, and when we have access to all of the raw data.
+
+## 3d
+
+We find that the effect of intervention $B$ is statistically significant at $\alpha = 0.05$ for both analyses in parts (b) and (c). The effect direction of intervention $B$ is also positive for both analyses.
